@@ -41,6 +41,7 @@ class Paint(object):
         i+=1
         self.choose_size_button = Scale(self.root, showvalue=0, label="Size", from_=1, to=10, orient=HORIZONTAL)
         self.choose_size_button.grid(row=0, column=i)
+        self.choose_size_button.set(2)
 
         i+=1
         self.finish_button = Button(self.root, text="finish", command=self.finish)
@@ -112,8 +113,9 @@ class Paint(object):
         # self.splotch_button.grid(row=2, column=i)
 
         i+=1
-        self.choose_ink_button = Scale(self.root, showvalue=0, label="Ink", from_=1, to=10, orient=HORIZONTAL)
+        self.choose_ink_button = Scale(self.root, showvalue=0, label="Ink", from_=0, to=10, orient=HORIZONTAL)
         self.choose_ink_button.grid(row=3, column=i)
+        # self.choose_ink_button.set(0)
 
         i+=1
         self.label = Label(self.root, text="Seed:")
@@ -232,8 +234,8 @@ class Paint(object):
 
             seed = self.seed,
 
-            yfade = self.yfade.get(),           #
-            velfade = self.velfade.get(),       #
+            yfade = self.yfade.get(),           # Done
+            velfade = self.velfade.get(),       # Done
             ydrift = self.ydrift.get(),         # Done
             xdrift = self.xdrift.get(),         # Done
             xstretch = self.xstretch.get(),     # Done
@@ -242,8 +244,8 @@ class Paint(object):
                       self.yjiggle.get()),      # Done
             velocity = self.velocity.get(),     # Done
             dotshift = self.dotshift.get(),     # Done
-            stampbox = self.stampbox.get(),     #
-            rotate = self.rotate.get(), # Done
+            stampbox = self.stampbox.get(),     # Done
+            rotate = self.rotate.get(),         # Done
         )
 
     def reset(self, event=None):
