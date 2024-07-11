@@ -39,11 +39,6 @@ class Paint(object):
         self.color_button.grid(row=0, column=i)
 
         i+=1
-        self.choose_size_button = Scale(self.root, showvalue=0, label="Size", from_=1, to=10, orient=HORIZONTAL)
-        self.choose_size_button.grid(row=0, column=i)
-        self.choose_size_button.set(2)
-
-        i+=1
         self.finish_button = Button(self.root, text="finish", command=self.finish)
         self.finish_button.grid(row=0, column=i)
 
@@ -94,28 +89,23 @@ class Paint(object):
 
         i+=1
         self.dotshift = BooleanVar(value=False)
-        self.dotshift_button = Checkbutton(self.root, text="Dot-Shift", variable=self.dotshift, onvalue=True, offvalue=False)
+        self.dotshift_button = Checkbutton(self.root, text="Dot-Jiggle", variable=self.dotshift, onvalue=True, offvalue=False)
         self.dotshift_button.grid(row=2, column=i)
 
-        i = 1
-        self.stampbox = BooleanVar(value=False)
-        self.stampbox_button = Checkbutton(self.root, text="Stamp-Box", variable=self.stampbox, onvalue=True, offvalue=False)
-        self.stampbox_button.grid(row=3, column=i)
+        i=1
+        self.startendfade = BooleanVar(value=False)
+        self.startendfade_button = Checkbutton(self.root, text="StartEnd-Fade", variable=self.startendfade, onvalue=True, offvalue=False)
+        self.startendfade_button.grid(row=3, column=i)
 
         i+=1
-        self.rotate = BooleanVar(value=False)
-        self.rotational_button = Checkbutton(self.root, text="rotate", variable=self.rotate, onvalue=True, offvalue=False)
-        self.rotational_button.grid(row=3, column=i)
-
-        # i+=1
-        # self.splotch = BooleanVar(value=False)
-        # self.splotch_button = Checkbutton(self.root, text="Ink-Splotch", variable=self.splotch, onvalue=True, offvalue=False)
-        # self.splotch_button.grid(row=2, column=i)
+        self.smooth = BooleanVar(value=False)
+        self.smooth_button = Checkbutton(self.root, text="Smooth", variable=self.smooth, onvalue=True, offvalue=False)
+        self.smooth_button.grid(row=3, column=i)
 
         i+=1
-        self.choose_ink_button = Scale(self.root, showvalue=0, label="Ink", from_=0, to=10, orient=HORIZONTAL)
-        self.choose_ink_button.grid(row=3, column=i)
-        # self.choose_ink_button.set(0)
+        self.smoothk = BooleanVar(value=False)
+        self.smoothk_button = Checkbutton(self.root, text="Interpolate", variable=self.smoothk, onvalue=True, offvalue=False)
+        self.smoothk_button.grid(row=3, column=i)
 
         i+=1
         self.label = Label(self.root, text="Seed:")
@@ -124,9 +114,39 @@ class Paint(object):
         self.seed_entry= Entry(self.root, width= 10)
         self.seed_entry.grid(row=3, column=i)
 
+        i = 1
+        self.stampbox = BooleanVar(value=False)
+        self.stampbox_button = Checkbutton(self.root, text="Stamp-Box", variable=self.stampbox, onvalue=True, offvalue=False)
+        self.stampbox_button.grid(row=4, column=i)
+
+        i+=1
+        self.rotate = BooleanVar(value=False)
+        self.rotational_button = Checkbutton(self.root, text="rotate", variable=self.rotate, onvalue=True, offvalue=False)
+        self.rotational_button.grid(row=4, column=i)
+
+        # i+=1
+        # self.splotch = BooleanVar(value=False)
+        # self.splotch_button = Checkbutton(self.root, text="Ink-Splotch", variable=self.splotch, onvalue=True, offvalue=False)
+        # self.splotch_button.grid(row=2, column=i)
+
+        i+=1
+        self.choose_ink_button = Scale(self.root, showvalue=0, label="Ink", from_=0, to=3, orient=HORIZONTAL)
+        self.choose_ink_button.grid(row=4, column=i)
+        self.choose_ink_button.set(0)
+
+        i+=1
+        self.choose_size_button = Scale(self.root, showvalue=0, label="Size", from_=1, to=10, orient=HORIZONTAL)
+        self.choose_size_button.grid(row=4, column=i)
+        self.choose_size_button.set(2)
+
+        i+=1
+        self.surprise = BooleanVar(value=False)
+        self.surprise_button = Checkbutton(self.root, text="Surprise Me!", variable=self.surprise, onvalue=True, offvalue=False)
+        self.surprise_button.grid(row=4, column=i)
+
         i+=1
         self.c = Canvas(self.root, bg='white', width=612, height=792)
-        self.c.grid(row=4, columnspan=8)
+        self.c.grid(row=5, columnspan=8)
 
         self.coords = []
         self.splines = []
@@ -229,23 +249,27 @@ class Paint(object):
         sig_config.generate_sigs(
             self.coords,
             self.color,
-            self.line_width,
-            self.fade,
+            self.choose_size_button.get(),
+            self.choose_ink_button.get(),
 
-            seed = self.seed,
+            seed=self.seed_entry.get(),
 
-            yfade = self.yfade.get(),           # Done
-            velfade = self.velfade.get(),       # Done
-            ydrift = self.ydrift.get(),         # Done
-            xdrift = self.xdrift.get(),         # Done
-            xstretch = self.xstretch.get(),     # Done
-            ystretch = self.ystretch.get(),     # Done
-            jiggle = (self.xjiggle.get(),       # Done
-                      self.yjiggle.get()),      # Done
-            velocity = self.velocity.get(),     # Done
-            dotshift = self.dotshift.get(),     # Done
-            stampbox = self.stampbox.get(),     # Done
-            rotate = self.rotate.get(),         # Done
+            yfade = self.yfade.get(),                   # Done
+            velfade = self.velfade.get(),               # Done
+            startendfade = self.startendfade.get(),     # Done
+            smooth = self.smooth.get(),                 # Done
+            smoothk = self.smoothk.get(),               # Done
+            ydrift = self.ydrift.get(),                 # Done
+            xdrift = self.xdrift.get(),                 # Done
+            xstretch = self.xstretch.get(),             # Done
+            ystretch = self.ystretch.get(),             # Done
+            jiggle = (self.xjiggle.get(),               # Done
+                      self.yjiggle.get()),              # Done
+            velocity = self.velocity.get(),             # Done
+            dotshift = self.dotshift.get(),             # Done
+            stampbox = self.stampbox.get(),             # Done
+            rotate = self.rotate.get(),                 # Done
+            surprise = self.surprise.get(),                 # Done
         )
 
     def reset(self, event=None):

@@ -49,7 +49,7 @@ class Signature(SignatureComponent):
         for line in coords:
             if len(line) == 0:
                 continue
-            spline = bspline(line, n=int(max(len(line)//2,100)))
+            spline = bspline(line, n=int(max(len(line)//2, 9)))
             self.splines.append(spline)
 
         a = 0
@@ -76,11 +76,12 @@ class Signature(SignatureComponent):
     def write_img(self, fname):
         img = Image.new('RGB',(612,792),(255,255,255))
         draw = ImageDraw.Draw(img)
-        splines, _, _, _ = self.get_sig()
-        for spline in splines:
+        splines, colors, fades, widths = self.get_sig()
+        for spline, color, fade, width in zip(splines, colors, fades, widths):
             if len(spline) == 0:
                 continue
-            draw.line([(x,y) for x,y in spline], fill='red', width=2)
+            for v1, v2, c, f, w in zip(spline[:-1], spline[1:], color[1:], fade[1:], width[1:]):
+                draw.line([(v1[0], v1[1]),(v2[0],v2[1])], fill=(int(c[0]), int(c[1]), int(c[2])), width=int(w))
         img.save(f'./{fname}.png')
 
     def write_ps(self, fname):
@@ -91,7 +92,8 @@ class Signature(SignatureComponent):
             for v1, v2, c, f, w in zip(spline[:-1], spline[1:], color[1:], fade[1:], width[1:]):
                 line += "newpath\n"
                 line += f"{c[0]/256} {c[1]/256} {c[2]/256} setrgbcolor\n"
-                line += f"{f} setgray\n"
+                if int(c[0]) + int(c[0]) + int(c[0]) == 0:
+                    line += f"{min(f,0.8)} setgray\n"
                 line += f"{v1[0]} {792 - v1[1]} moveto\n"
                 line += f"{v2[0]} {792 - v2[1]} lineto\n"
                 line += f"1 setlinecap\n"
@@ -141,11 +143,12 @@ class SignatureDecorator(SignatureComponent):
     def write_img(self, fname):
         img = Image.new('RGB',(612,792),(255,255,255))
         draw = ImageDraw.Draw(img)
-        splines, _, _, _ = self.get_sig()
-        for spline in splines:
+        splines, colors, fades, widths = self.get_sig()
+        for spline, color, fade, width in zip(splines, colors, fades, widths):
             if len(spline) == 0:
                 continue
-            draw.line([(x,y) for x,y in spline], fill='red', width=2)
+            for v1, v2, c, f, w in zip(spline[:-1], spline[1:], color[1:], fade[1:], width[1:]):
+                draw.line([(v1[0], v1[1]),(v2[0],v2[1])], fill=(int(c[0]), int(c[1]), int(c[2])), width=int(w))
         img.save(f'./{fname}.png')
 
     def write_ps(self, fname):
@@ -154,9 +157,11 @@ class SignatureDecorator(SignatureComponent):
         print(len(splines))
         for spline, color, fade, width in zip(splines, colors, fades, widths):
             for v1, v2, c, f, w in zip(spline[:-1], spline[1:], color[1:], fade[1:], width[1:]):
+
                 line += "newpath\n"
                 line += f"{c[0]/256} {c[1]/256} {c[2]/256} setrgbcolor\n"
-                line += f"{f} setgray\n"
+                if int(c[0]) + int(c[0]) + int(c[0]) == 0:
+                    line += f"{min(f,0.8)} setgray\n"
                 line += f"{v1[0]} {792 - v1[1]} moveto\n"
                 line += f"{v2[0]} {792 - v2[1]} lineto\n"
                 line += f"1 setlinecap\n"
@@ -220,9 +225,9 @@ class SigDotShift(SignatureDecorator):
         splines = [self.splines[a:b] for a,b in zip(self.lengths[:-1], self.lengths[1:])]
         noise = [loc[a:b] for a,b in zip(self.lengths[:-1], self.lengths[1:])]
         zeros = [np.zeros(spline.shape) for spline in splines]
+        print(self.lengths)
         dot = [len(spline) < 10 for spline in splines]
         dotnoise = [noise[i] if d else zeros[i] for i,d in enumerate(dot)]
-        print(dotnoise)
         loc = np.concatenate(dotnoise)
         self.splines += loc
 
@@ -316,7 +321,7 @@ class SigYFade(SignatureDecorator):
         rng = np.random.default_rng(self.seed + 3411)
         pen = rng.uniform(1.05, 1.4)
         diff = rng.uniform(0.4,0.75)
-        af = rng.uniform(pen*self.f+0.1,pen*self.f+0.6)
+        af = rng.uniform(0.2,0.5)
 
         miny, meany, maxy = min(self.splines[:,1]), np.mean(self.splines[:,1]), max(self.splines[:,1])
         stdy = np.std(self.splines[:,1])
@@ -358,7 +363,7 @@ class SigVelFade(SignatureDecorator):
         rng = np.random.default_rng(self.seed + 3411)
         pen = rng.uniform(1.05, 1.4)
         diff = rng.uniform(0.4,0.75)
-        af = rng.uniform(pen*self.f+0.1,pen*self.f+0.6)
+        af = rng.uniform(0.2,0.5)
 
         splines = [self.splines[a:b] for a,b in zip(self.lengths[:-1], self.lengths[1:])]
         # v = np.stack([
@@ -402,7 +407,7 @@ class SigStampBox(SignatureDecorator):
         color = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
         self.c = color
         self.w = width+2
-        self.f = fade
+        self.f = fade // 10
         super().__init__(signature, seed)
 
     def update_sig(self):
@@ -427,6 +432,100 @@ class SigStampBox(SignatureDecorator):
         self.fade = np.append(self.fade, fade)
         self.width = np.append(self.width, width)
 
+class SigStartEndFade(SignatureDecorator):
+    def __init__(self, signature: SignatureComponent, width, fade, seed=0):
+        self.w = width
+        self.f = fade
+        super().__init__(signature, seed)
+
+    def update_sig(self):
+        rng = np.random.default_rng(self.seed + 3411)
+        pen = rng.uniform(1.05, 1.4)
+        diff = rng.uniform(0.4,0.75)
+        af = rng.uniform(0.2,0.5)
+        start = rng.integers(0, int(len(self.splines)//6))
+        end = rng.integers(0, int(len(self.splines)//6))
+
+        le = lambda y, p1, p2: (p1[1] - p2[1])/(p1[0] - p2[0]) * (y - p1[0]) + p1[1]
+
+        lew = lambda y: le(y, (start, self.w), (0, (pen - diff)*self.w))
+        self.width = np.array(
+            [lew(i) if i < start else w for i, w in enumerate(self.width)]
+        )
+
+        lew = lambda y: le(y, (start, af), (0, self.f))
+        self.fade = np.array(
+            [lew(i) if i < start else w for i, w in enumerate(self.fade)]
+        )
+
+        lew = lambda y: le(y, (len(self.splines), (pen - diff)*self.w), (len(self.splines)-end, self.w))
+        self.width = np.array(
+            [lew(i) if (len(self.splines)-end) < i else w for i, w in enumerate(self.width)]
+        )
+
+        lew = lambda y: le(y, (len(self.splines), af), (len(self.splines)-end, self.f))
+        self.fade = np.array(
+            [lew(i) if (len(self.splines)-end) < i else w for i, w in enumerate(self.fade)]
+        )
+
+class SigSmooth(SignatureDecorator):
+    def update_sig(self):
+        splines = [self.splines[a:b] for a,b in zip(self.lengths[:-1], self.lengths[1:])]
+        width = [self.width[a:b] for a,b in zip(self.lengths[:-1], self.lengths[1:])]
+        color = [self.color[a:b] for a,b in zip(self.lengths[:-1], self.lengths[1:])]
+        fade = [self.fade[a:b] for a,b in zip(self.lengths[:-1], self.lengths[1:])]
+
+        dsplines = [
+            [[2]+np.sqrt((x2-x1)**2 + (y2-y1)**2) for (x1,y1), (x2,y2) in zip(spline[:-1], spline[1:])]
+            for spline in splines
+        ]
+
+        print(dsplines)
+
+        bools = [
+            [d > 1.75*w for d,w in zip(dspline, ws)] 
+            for dspline, ws in zip(dsplines, width)
+        ]
+
+        print(self.lengths)
+        self.lengths = [0]+[sum(b)[0] for b in bools]
+        print(self.lengths)
+        self.splines = np.concatenate([[v for v,b in zip(spline, bs) if b] for spline, bs in zip(splines, bools)])
+        self.width = np.concatenate([[v for v,b in zip(ws, bs) if b] for ws, bs in zip(width, bools)])
+        self.color = np.concatenate([[v for v,b in zip(cs, bs) if b] for cs, bs in zip(color, bools)])
+        self.fade = np.concatenate([[v for v,b in zip(fs, bs) if b] for fs, bs in zip(fade, bools)])
+
+class SigSmoothK(SignatureDecorator):
+    def update_sig(self):
+        splines = [self.splines[a:b] for a,b in zip(self.lengths[:-1], self.lengths[1:])]
+
+        splines1 = np.concatenate([
+            np.append(np.stack([
+                np.convolve(spline[:,0], [0.45, 0.1, 0.45], mode='valid'),
+                np.convolve(spline[:,1], [0.45, 0.1, 0.45], mode='valid'),
+            ], axis=-1), spline[-2:], axis=0) 
+            for spline in splines
+        ])
+
+        splines2 = np.concatenate([
+            np.append(np.stack([
+                np.convolve(spline[:,0], [0.45, 0.05, 0.05, 0.45], mode='valid'),
+                np.convolve(spline[:,1], [0.45, 0.05, 0.05, 0.45], mode='valid'),
+            ], axis=-1), spline[-3:], axis=0)
+            for spline in splines
+        ])
+
+        splines3 = np.concatenate([
+            np.append(np.stack([
+                np.convolve(spline[:,0], [0.45, 0, 0.1, 0, 0.45], mode='valid'),
+                np.convolve(spline[:,1], [0.45, 0, 0.1, 0, 0.45], mode='valid'),
+            ], axis=-1), spline[-4:], axis=0)
+            for spline in splines
+        ])
+
+        self.splines = (splines1 + splines2 + splines3) / 3
+        
+
 class SignatureConfigurator():
     def generate_sigs(self, coords, color, width, fade, **kwargs):
         seed = kwargs.get('seed', 0)
@@ -436,73 +535,113 @@ class SignatureConfigurator():
         sig.write_img('prev_sig')
         sig.write_ps('prev_sig')
 
-        if kwargs['yfade']:
+        kl = len(kwargs) + 1
+        dl = np.zeros(kl)
+        if kwargs['surprise']:
+            dl = np.random.randint(0,2, kl)
+
+        i=0
+        if kwargs['yfade'] + dl[i]:
             print("yfade")
             print(sig.splines[:5])
             sig = SigYFade(sig, width, fade, seed)
             print(sig.splines[:5])
 
-        if kwargs['velfade']:
+        i+=1
+        if kwargs['velfade'] + dl[i]:
             print("velfade")
             print(sig.splines[:5])
             sig = SigVelFade(sig, width, fade, seed)
             print(sig.splines[:5])
 
+        i+=1
+        if kwargs['startendfade'] + dl[i]:
+            print("startendfade")
+            print(sig.splines[:5])
+            sig = SigStartEndFade(sig, width, fade, seed)
+            print(sig.splines[:5])
+
+        i+=1
         xjiggle, yjiggle = kwargs['jiggle']
-        if xjiggle | yjiggle:
+        xjiggle += dl[i]
+        i+=1
+        yjiggle += dl[i]
+        if xjiggle + yjiggle:
             print("jiggle")
             print(sig.splines[:5])
             sig = SigJiggle(sig, xjiggle, yjiggle, seed)
             print(sig.splines[:5])
 
-        if kwargs['velocity']:
+        i+=1
+        if kwargs['velocity'] + dl[i]:
             print("velocity")
             print(sig.splines[:5])
             sig = SigVelocity(sig, seed)
             print(sig.splines[:5])
 
-        if kwargs['dotshift']:
+        i+=1
+        if kwargs['dotshift'] + dl[i]:
             print("dotshift")
             print(sig.splines[:5])
             sig = SigDotShift(sig, seed)
             print(sig.splines[:5])
 
-        if kwargs['ydrift']:
+        i+=1
+        if kwargs['ydrift'] + dl[i]:
             print("ydrift")
             print(sig.splines[:5])
             sig = SigYDrift(sig, seed)
             print(sig.splines[:5])
 
-        if kwargs['xdrift']:
+        i+=1
+        if kwargs['xdrift'] + dl[i]:
             print("xdrift")
             print(sig.splines[:5])
             sig = SigXDrift(sig, seed)
             print(sig.splines[:5])
 
-        if kwargs['xstretch']:
+        i+=1
+        if kwargs['xstretch'] + dl[i]:
             print("xstretch")
             print(sig.splines[:5])
             sig = SigXStretch(sig, seed)
             print(sig.splines[:5])
 
-        if kwargs['ystretch']:
+        i+=1
+        if kwargs['ystretch'] + dl[i]:
             print("ystretch")
             print(sig.splines[:5])
             sig = SigYStretch(sig, seed)
             print(sig.splines[:5])
 
+        i+=1
+        if kwargs['smoothk'] + dl[i]:
+            print("smoothk")
+            print(sig.splines[:5])
+            sig = SigSmoothK(sig, seed)
+            print(sig.splines[:5])
+
+        i+=1
+        if kwargs['smooth']:
+            print("smooth")
+            print(sig.splines[:5])
+            sig = SigSmooth(sig, seed)
+            print(sig.splines[:5])
+
+        i+=1
         if kwargs['stampbox']:
             print("stampbox")
             print(sig.splines[:5])
             sig = SigStampBox(sig, color, width, fade, seed)
             print(sig.splines[:5])
 
+        i+=1
         if kwargs['rotate']:
             print("rotate")
             print(sig.splines[:5])
             sig = SigRotate(sig, seed)
             print(sig.splines[:5])
-
+        
         print("end")
         sig.write_img('test_sig')
         sig.write_ps('test_sig')
